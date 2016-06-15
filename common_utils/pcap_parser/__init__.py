@@ -100,7 +100,7 @@ class PcapParser(object):
             src_ip = first_eth_pkt.data.src
             dst_ip = first_eth_pkt.data.dst
             all_pkts = []
-            for i in range(1, len(self.all_pkts)):
+            for i in range(0, len(self.all_pkts)):
                 curr_raw_pkt = dpkt.ethernet.Ethernet(self.all_pkts[i][1])
                 curr_src = curr_raw_pkt.data.src
                 curr_dst = curr_raw_pkt.data.dst
