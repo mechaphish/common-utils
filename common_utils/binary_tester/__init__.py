@@ -107,10 +107,11 @@ class BinaryTester(object):
         return [f for f in os.listdir(folder) if os.stat(os.path.join(folder, f)).st_mode & executable_flag]
 
     @staticmethod
-    def parse_cb_test_out(output_buf):
+    def parse_cb_test_out(output_buf, ignore_cb_server_timeout=True):
         """
         Parse the output of the cb-test to get various performance counters.
         :param output_buf: Output of cb test
+        :param ignore_cb_server_timeout: Ignore if cb-server fails, only consider polls and tests.
         :return: flag indicating if the performance counters have been computed,
                 final_result (single letter indicating final result of the test)
                 , Dictionary containing performance metrics in the following format:
@@ -141,11 +142,13 @@ class BinaryTester(object):
                     str_val = curr_line.split(curr_perf_tuple[1])[1].strip()
                     performance_json[curr_perf_tuple[2]] = curr_perf_tuple[3](str_val)
                     has_perf_counters = True
-            if "total tests failed" in curr_line:
+            if "total tests failed" in curr_line or "polls failed" in curr_line:
                 total_failed = int(curr_line.split(":")[1])
             elif "SIGSEGV" in curr_line or "SIGFPE" in curr_line or "SIGILL" in curr_line:
                 final_result = BinaryTester.CRASH_RESULT
-            elif "SIGALRM" in curr_line or "not ok - process timed out" in curr_line:
+            elif "SIGALRM" in curr_line:
+                final_result = BinaryTester.FAIL_RESULT
+            elif not ignore_cb_server_timeout and "not ok - process timed out" in curr_line:
                 final_result = BinaryTester.FAIL_RESULT
 
         if total_failed > 0:
