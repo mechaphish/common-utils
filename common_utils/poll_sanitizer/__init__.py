@@ -14,7 +14,7 @@ DARPA_POLL_HEADER = """<?xml version="1.0" standalone="no" ?>
 READ_TIME_OUT = 2  # 2 seconds
 RANDOM_SEED_LENGTH = 96  # length of the random seed used while creating poll
 
-IGNORE_CB_TEST_RET_CODE = True # Flag to indicate whether to ignore cb-test return code and check only its output.
+IGNORE_CB_TEST_RET_CODE = True  # Flag to indicate whether to ignore cb-test return code and check only its output.
 
 
 def __get_unique_fp(file_contents, optional_prefix='', optional_suffix=''):
@@ -99,23 +99,30 @@ def __generate_poll_by_pcap(only_write_pov, target_cbs_bin, optional_prefix='', 
         :param first_write_guy: First Write element in the Poll used to generate the PCAP.
         :return: list of pkts that need to be considered for creating Poll
         """
-        NUM_NEGOTIATION_PKTS = 2
+
+        to_ret = []
         if first_write_guy is not None:
             for i in range(len(curr_pkts)):
                 curr_pkt = curr_pkts[i]
                 if curr_pkt.is_input and len(first_write_guy.data_vars) > 0 and \
-                   first_write_guy.data_vars[0] == curr_pkt:
-                    return curr_pkts[i:]
-        else:
+                   str(first_write_guy.data_vars[0].data) == curr_pkt.data:
+                    to_ret = curr_pkts[i:]
+                    break
+        # if the PCAP does not contain expected write or we have no writes.
+        # ignore first 2-packets (seed negotiation and response)
+        if not to_ret:
             num_valid_pkts = 0
             for i in range(len(curr_pkts)):
                 if num_valid_pkts >= NUM_NEGOTIATION_PKTS:
-                    return curr_pkts[i:]
+                    to_ret = curr_pkts[i:]
+                    break
                 curr_pkt = curr_pkts[i]
                 if curr_pkt.data is not None:
                     num_valid_pkts += 1
-        return []
+        return to_ret
 
+    # number of pkts in PCAP that are used for negotiation.
+    NUM_NEGOTIATION_PKTS = 2
     temp_files = []
     valid_poll_xml = None
     poll_test_res = BinaryTester.FAIL_RESULT
@@ -149,24 +156,34 @@ def __generate_poll_by_pcap(only_write_pov, target_cbs_bin, optional_prefix='', 
         try:
             bin_data_stream = PcapParser(pcap_output_file).get_data_stream()
             new_actions = []
-            # Get the data pkts from PCAP and construct a Poll.
-            for curr_packet in get_actual_data_pkts(bin_data_stream.data_pkts, first_write_element):
-                # If this is output from binary, then we should expect this in Poll
-                if curr_packet.is_output:
-                    curr_action = Read(length=len(curr_packet.data), match=Match([Data(curr_packet.data)]))
-                # else, if this is input then we should write this.
-                elif curr_packet.is_input:
-                    curr_action = Write([Data(curr_packet.data)])
-                else:
-                    log_failure("Got unknown action:" + str(curr_packet) + " from PCAP." + str(log_suffix))
-                new_actions.append(curr_action)
-            # Create the resulting poll
-            new_pov = CFE_POLL(only_write_pov.target, only_write_pov.seed, new_actions)
-            # Check the stability of the Poll.
-            is_poll_ok, poll_test_res = __check_poll_stability(DARPA_POLL_HEADER + str(new_pov), target_cbs_bin,
-                                                               optional_prefix=optional_prefix)
-            if is_poll_ok:
-                valid_poll_xml = DARPA_POLL_HEADER + str(new_pov)
+            # Get valid data pkts from PCAP.
+            valid_pcap_data_pkts = get_actual_data_pkts(bin_data_stream.data_pkts, first_write_element)
+            if len(valid_pcap_data_pkts) == 0:
+                # if we expect some data? log failure.
+                if len(bin_data_stream.data_pkts) > NUM_NEGOTIATION_PKTS:
+                    log_failure("Potential Bug, There are " + str(len(bin_data_stream.data_pkts)) +
+                                " pkts, but there are no valid data pkts")
+                # return PASS
+                poll_test_res = BinaryTester.PASS_RESULT
+            else:
+                # Get the data pkts from PCAP and construct a Poll.
+                for curr_packet in valid_pcap_data_pkts:
+                    # If this is output from binary, then we should expect this in Poll
+                    if curr_packet.is_output:
+                        curr_action = Read(length=len(curr_packet.data), match=Match([Data(curr_packet.data)]))
+                    # else, if this is input then we should write this.
+                    elif curr_packet.is_input:
+                        curr_action = Write([Data(curr_packet.data)])
+                    else:
+                        log_failure("Got unknown action:" + str(curr_packet) + " from PCAP." + str(log_suffix))
+                    new_actions.append(curr_action)
+                # Create the resulting poll
+                new_pov = CFE_POLL(only_write_pov.target, only_write_pov.seed, new_actions)
+                # Check the stability of the Poll.
+                is_poll_ok, poll_test_res = __check_poll_stability(DARPA_POLL_HEADER + str(new_pov), target_cbs_bin,
+                                                                   optional_prefix=optional_prefix)
+                if is_poll_ok:
+                    valid_poll_xml = DARPA_POLL_HEADER + str(new_pov)
 
         except Exception as e:
             log_error("Error occured:" + str(e) + ", while trying to generate poll from PCAP." + str(log_suffix))
@@ -229,11 +246,12 @@ def generate_poll_from_input(input_data, target_cbs_bin, cbn_id, optional_prefix
     rand_seed = rand_seed[0:RANDOM_SEED_LENGTH]
     # Create Poll Xml with single write.
     default_actions = [Write([Data(input_data)])]
-    cfe_test_xml_content = DARPA_POLL_HEADER + str(CFE_POLL(cbn_id, rand_seed, list(default_actions)))
+    target_poll = CFE_POLL(cbn_id, rand_seed, list(default_actions))
+    cfe_test_xml_content = DARPA_POLL_HEADER + str(target_poll)
     # First, just check with input.
     is_poll_ok, poll_test_res = __check_poll_stability(cfe_test_xml_content, target_cbs_bin, no_of_tries=1)
     # if input itself leads to crash, then exit.
     if not is_poll_ok:
         return None, poll_test_res
-    return __generate_poll_by_pcap(cfe_test_xml_content, target_cbs_bin, optional_prefix=optional_prefix,
+    return __generate_poll_by_pcap(target_poll, target_cbs_bin, optional_prefix=optional_prefix,
                                    log_suffix=log_suffix)
