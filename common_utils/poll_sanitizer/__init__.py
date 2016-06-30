@@ -29,7 +29,7 @@ def __get_unique_fp(file_contents, optional_prefix='', optional_suffix=''):
     while os.path.exists(target_file_path):
         target_file_path = os.path.join(os.path.expanduser("~"),  optional_prefix + str(uuid.uuid4()) + optional_suffix)
     xml_file_fd = open(target_file_path, 'w')
-    xml_file_fd.write(file_contents)
+    xml_file_fd.write(str(file_contents))
     xml_file_fd.close()
     return target_file_path
 
