@@ -14,7 +14,7 @@ class BinaryTester(object):
     FAIL_RESULT = "F"
     PASS_RESULT = "S"
 
-    def __init__(self, binary, testcase, pcap_output_file=None, is_pov=False, is_cfe=False, timeout=None,
+    def __init__(self, binary, testcase, pcap_output_file=None, is_pov=False, is_cfe=True, timeout=None,
                  standlone=False):
         """
         Constructor of BinaryTester Object.
@@ -68,7 +68,11 @@ class BinaryTester(object):
                 args.extend(['--should_core'])
             if self.pcap_output_file is not None:
                 args.extend(['--pcap', str(self.pcap_output_file)])
-            args.extend(['--cb'] + binary_names + ['--xml', test_xml_path, '--directory', binary_dir_path])
+            if os.path.isdir(test_xml_path):
+                args.extend(['--xml_dir', test_xml_path])
+            else:
+                args.extend(['--xml', test_xml_path])
+            args.extend(['--cb'] + binary_names + ['--directory', binary_dir_path])
             return args
 
         def is_port_failure(stdout_text):
