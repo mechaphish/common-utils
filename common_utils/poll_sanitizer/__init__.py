@@ -43,13 +43,15 @@ def __check_poll_stability(cfe_poll_xml, target_cbs_bin, no_of_tries=NEW_POLL_TE
     :param target_cbs_bin: Path to the folder (in case of multi-binary CS) or CB path
     :param no_of_tries: No of times the poll needs to be tested.
     :param optional_prefix: Prefix to be used while creating files.
-    :return: (result, poll_test_res).
+    :return: (result, poll_test_res, ret_code).
             result: bool indicating whether the poll is success.
             poll_test_res: BinaryTester.PASS_RESULT or FAIL_RESULT or CRASH_RESULT
+            ret_code: Return code of cb-test
     """
     # Test the newly generated poll for specified number of times, for sanity.
     poll_ok = True
     final_result = BinaryTester.PASS_RESULT
+    ret_code = -1
     cfe_test_file = __get_unique_fp(cfe_poll_xml, optional_prefix=optional_prefix , optional_suffix='_test.xml')
     for i in range(no_of_tries):
         bin_tester = BinaryTester(target_cbs_bin, cfe_test_file, is_cfe=True, standlone=True)
@@ -68,7 +70,7 @@ def __check_poll_stability(cfe_poll_xml, target_cbs_bin, no_of_tries=NEW_POLL_TE
             poll_ok = False
             break
     os.system('rm ' + cfe_test_file)
-    return poll_ok, final_result
+    return poll_ok, final_result, ret_code
 
 
 def __generate_poll_by_pcap(only_write_pov, target_cbs_bin, optional_prefix='', log_suffix=''):
@@ -180,8 +182,9 @@ def __generate_poll_by_pcap(only_write_pov, target_cbs_bin, optional_prefix='', 
                 # Create the resulting poll
                 new_pov = CFE_POLL(only_write_pov.target, only_write_pov.seed, new_actions)
                 # Check the stability of the Poll.
-                is_poll_ok, poll_test_res = __check_poll_stability(DARPA_POLL_HEADER + str(new_pov), target_cbs_bin,
-                                                                   optional_prefix=optional_prefix)
+                is_poll_ok, poll_test_res, ret_code = __check_poll_stability(DARPA_POLL_HEADER + str(new_pov),
+                                                                             target_cbs_bin,
+                                                                             optional_prefix=optional_prefix)
                 if is_poll_ok:
                     valid_poll_xml = DARPA_POLL_HEADER + str(new_pov)
 
@@ -192,7 +195,7 @@ def __generate_poll_by_pcap(only_write_pov, target_cbs_bin, optional_prefix='', 
     for curr_t_file in temp_files:
         os.system('rm ' + str(curr_t_file))
 
-    return valid_poll_xml, poll_test_res
+    return valid_poll_xml, poll_test_res, ret_code
 
 
 def sanitize_pcap_poll(cfe_poll_xml, target_cbs_bin, optional_prefix='', log_suffix=''):
@@ -203,18 +206,19 @@ def sanitize_pcap_poll(cfe_poll_xml, target_cbs_bin, optional_prefix='', log_suf
     :param target_cbs_bin: Path to the unpatched folder (in case of multi-binary CS) or CB path
     :param optional_prefix: Optional Prefix (helps in maintaining isolation in case of multi-threaded execution)
     :param log_suffix: Suffix to be used for logging.
-    :return: (poll_xml, poll_test_res).
+    :return: (poll_xml, poll_test_res, ret_code).
             poll_xml: Valid CFE POLL XML, generated from provided cfe poll.
             poll_test_res: BinaryTester.PASS_RESULT or FAIL_RESULT or CRASH_RESULT
+            ret_code: Return code of cb-test
     """
     # Check if we get lucky and the poll is valid
-    is_poll_ok, poll_test_res = __check_poll_stability(cfe_poll_xml, target_cbs_bin)
+    is_poll_ok, poll_test_res, ret_code = __check_poll_stability(cfe_poll_xml, target_cbs_bin)
     if is_poll_ok:
         log_success("Poll generated from PCAP is valid!" + str(log_suffix))
-        return cfe_poll_xml, poll_test_res
+        return cfe_poll_xml, poll_test_res, ret_code
     if poll_test_res == BinaryTester.CRASH_RESULT:
         log_failure("Poll generated from PCAP results in Crash, This is a potential Exploit." + str(log_suffix))
-        return None, poll_test_res
+        return None, poll_test_res, ret_code
     log_info("Original Poll is Invalid, Trying to generate from PCAP.")
     log_info("Trying to generate Poll by using cb-test." + str(log_suffix))
 
@@ -237,9 +241,10 @@ def generate_poll_from_input(input_data, target_cbs_bin, cbn_id, optional_prefix
     :param cbn_id: cbn or cs id of the binary to be tested.
     :param optional_prefix: Optional Prefix (helps in maintaining isolation in case of multi-threaded execution)
     :param log_suffix: Suffix to be used for logging.
-    :return: (poll_xml, poll_test_res).
+    :return: (poll_xml, poll_test_res, ret_code).
             poll_xml: Valid CFE POLL XML, generated from provided cfe poll.
             poll_test_res: BinaryTester.PASS_RESULT or FAIL_RESULT or CRASH_RESULT
+            ret_code: Return code of cb-test
     """
     # Create Random Seed.
     rand_seed = binascii.b2a_hex(os.urandom(RANDOM_SEED_LENGTH))
@@ -249,9 +254,9 @@ def generate_poll_from_input(input_data, target_cbs_bin, cbn_id, optional_prefix
     target_poll = CFE_POLL(cbn_id, rand_seed, list(default_actions))
     cfe_test_xml_content = DARPA_POLL_HEADER + str(target_poll)
     # First, just check with input.
-    is_poll_ok, poll_test_res = __check_poll_stability(cfe_test_xml_content, target_cbs_bin, no_of_tries=1)
+    is_poll_ok, poll_test_res, ret_code = __check_poll_stability(cfe_test_xml_content, target_cbs_bin, no_of_tries=1)
     # if input itself leads to crash, then exit.
     if not is_poll_ok:
-        return None, poll_test_res
+        return None, poll_test_res, ret_code
     return __generate_poll_by_pcap(target_poll, target_cbs_bin, optional_prefix=optional_prefix,
                                    log_suffix=log_suffix)

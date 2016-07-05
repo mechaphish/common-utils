@@ -68,11 +68,7 @@ class BinaryTester(object):
                 args.extend(['--should_core'])
             if self.pcap_output_file is not None:
                 args.extend(['--pcap', str(self.pcap_output_file)])
-            if os.path.isdir(test_xml_path):
-                args.extend(['--xml_dir', test_xml_path])
-            else:
-                args.extend(['--xml', test_xml_path])
-            args.extend(['--cb'] + binary_names + ['--directory', binary_dir_path])
+            args.extend(['--cb'] + binary_names + ['--xml', test_xml_path] + ['--directory', binary_dir_path])
             return args
 
         def is_port_failure(stdout_text):
@@ -144,7 +140,7 @@ class BinaryTester(object):
             for curr_perf_tuple in performance_counters:
                 if (curr_perf_tuple[0] in curr_line) and len(curr_line.split(curr_perf_tuple[1])) > 1:
                     str_val = curr_line.split(curr_perf_tuple[1])[1].strip()
-                    performance_json[curr_perf_tuple[2]] = curr_perf_tuple[3](str_val)
+                    performance_json[curr_perf_tuple[2]] += curr_perf_tuple[3](str_val)
                     has_perf_counters = True
             if "total tests failed" in curr_line or "polls failed" in curr_line:
                 total_failed = int(curr_line.split(":")[1])
