@@ -121,12 +121,13 @@ class BinaryTester(object):
                             "cpu_clock": <long>
                             "task_clock": <long>
                              "utime": <long>
+                             "file_size": <float>
                           }
                 }
         """
         final_result = None
         has_perf_counters = False
-        performance_json = {"rss": 0, "flt": 0, "utime": 0.0,  "cpu_clock": 0, "task_clock": 0}
+        performance_json = {"rss": 0, "flt": 0, "utime": 0.0,  "cpu_clock": 0, "task_clock": 0, "file_size": 0.0}
 
         # Performance counters
         # Format: (key check, split value, json key, type)
@@ -134,7 +135,8 @@ class BinaryTester(object):
                                 ("cb-server: total minflt", "total minflt", "flt", long),
                                 ("cb-server: total sw-cpu-clock", "sw-cpu-clock", "cpu_clock", long),
                                 ("cb-server: total sw-task-clock", "sw-task-clock", "task_clock", long),
-                                ("cb-server: total utime", "utime", "utime", float)}
+                                ("cb-server: total utime", "utime", "utime", float),
+                                ("cb-server: stat", "filesize", "file_size", float)}
         total_failed = -1
         for curr_line in output_buf.split("\n"):
             for curr_perf_tuple in performance_counters:
