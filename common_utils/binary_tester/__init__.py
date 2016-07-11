@@ -15,7 +15,7 @@ class BinaryTester(object):
     PASS_RESULT = "S"
 
     def __init__(self, binary, testcase, pcap_output_file=None, is_pov=False, is_cfe=True, timeout=None,
-                 standlone=False):
+                 standalone=False, ids_rules=None):
         """
         Constructor of BinaryTester Object.
         :param binary: local folder containing binaries or
@@ -25,6 +25,8 @@ class BinaryTester(object):
         :param is_pov: flag to indicate if this is a PoV
         :param is_cfe: flag to indicate if this is a cfe
         :param timeout: Timeout (for cb test)
+        :param standalone: Standalone testing, should make sure ports are allocated.
+        :param ids_rules: Path to ids_rules file
         :return: BinaryTester Object
         """
         self.target_binary = os.path.abspath(binary)
@@ -33,7 +35,8 @@ class BinaryTester(object):
         self.is_pov = is_pov
         self.is_cfe = is_cfe
         self.timeout = timeout
-        self.standalone = standlone
+        self.standalone = standalone
+        self.ids_rules = ids_rules
 
     def create_temp_dir(self):
         """
@@ -59,7 +62,10 @@ class BinaryTester(object):
             else:
                 binary_dir_path = os.path.dirname(binary_path)
                 binary_names = [os.path.basename(binary_path)]
-            args = ['cb-test']
+            if self.ids_rules is None:
+                args = ['cb-test']
+            else:
+                args = ['cb-test-ids']
             if self.timeout:
                 args.extend(['--timeout', str(int(self.timeout))])
             if self.is_cfe:
@@ -68,11 +74,15 @@ class BinaryTester(object):
                 args.extend(['--should_core'])
             if self.pcap_output_file is not None:
                 args.extend(['--pcap', str(self.pcap_output_file)])
+            if self.ids_rules is not None:
+                args.extend(['--enable_remote', '--remote_nodes', 'localhost', 'localhost', 'localhost'])
+                args.extend(['--ids_rules', self.ids_rules])
             args.extend(['--cb'] + binary_names + ['--xml', test_xml_path] + ['--directory', binary_dir_path])
             return args
 
         def is_port_failure(stdout_text):
-            if "cb-server: unable to bind port:" in stdout_text:
+            if "cb-server: unable to bind port:" in stdout_text or \
+                    (self.ids_rules is not None and "Address already in use" in stdout_text):
                 return True
             else:
                 return False
@@ -138,6 +148,9 @@ class BinaryTester(object):
                                 ("cb-server: total utime", "utime", "utime", float),
                                 ("cb-server: stat", "filesize", "file_size", float)}
         total_failed = -1
+        # if there is no output, return Fail Result
+        if len(output_buf) == 0:
+            final_result = BinaryTester.FAIL_RESULT
         for curr_line in output_buf.split("\n"):
             for curr_perf_tuple in performance_counters:
                 if (curr_perf_tuple[0] in curr_line) and len(curr_line.split(curr_perf_tuple[1])) > 1:
