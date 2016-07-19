@@ -54,7 +54,7 @@ def __check_poll_stability(cfe_poll_xml, target_cbs_bin, no_of_tries=NEW_POLL_TE
     ret_code = -1
     cfe_test_file = __get_unique_fp(cfe_poll_xml, optional_prefix=optional_prefix , optional_suffix='_test.xml')
     for i in range(no_of_tries):
-        bin_tester = BinaryTester(target_cbs_bin, cfe_test_file, is_cfe=True, standlone=True)
+        bin_tester = BinaryTester(target_cbs_bin, cfe_test_file, is_cfe=True, standalone=True)
         ret_code, output_text, _ = bin_tester.test_cb_binary()
         if IGNORE_CB_TEST_RET_CODE:
             _, final_result, _ = BinaryTester.parse_cb_test_out(output_text)
@@ -142,7 +142,7 @@ def __generate_poll_by_pcap(only_write_pov, target_cbs_bin, optional_prefix='', 
     temp_files.append(pcap_output_file)
     # create pcap file
     bin_tester = BinaryTester(target_cbs_bin, pcap_test_xml, is_cfe=True, pcap_output_file=pcap_output_file,
-                              timeout=READ_TIME_OUT, standlone=True)
+                              timeout=READ_TIME_OUT, standalone=True)
     ret_code, _, _ = bin_tester.test_cb_binary()
 
     if os.path.exists(pcap_output_file):
