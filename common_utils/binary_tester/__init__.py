@@ -66,7 +66,10 @@ class BinaryTester(object):
                 args = ['cb-test']
             else:
                 args = ['cb-test-ids']
-            if self.timeout:
+            # if this is our binary, increase the timeout for safety
+            if not self.is_pov and self.ids_rules is not None:
+                args.extend(['--timeout', '50'])
+            elif self.timeout:
                 args.extend(['--timeout', str(int(self.timeout))])
             if self.is_cfe:
                 args.extend(['--negotiate'])
