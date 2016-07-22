@@ -13,6 +13,7 @@ DARPA_POLL_HEADER = """<?xml version="1.0" standalone="no" ?>
                     """
 READ_TIME_OUT = 2  # 2 seconds
 RANDOM_SEED_LENGTH = 96  # length of the random seed used while creating poll
+AFL_CONST_SEED = '0262f0af52bbe292c7f54469239a86b2a8ffaecc6880e7da5e434fd5b57b827b06d9945a47fbdd2f1b2f43a0ff4c1b7f'
 
 IGNORE_CB_TEST_RET_CODE = True  # Flag to indicate whether to ignore cb-test return code and check only its output.
 
@@ -232,7 +233,7 @@ def sanitize_pcap_poll(cfe_poll_xml, target_cbs_bin, optional_prefix='', log_suf
                                    log_suffix=log_suffix)
 
 
-def generate_poll_from_input(input_data, target_cbs_bin, cbn_id, optional_prefix='', log_suffix=''):
+def generate_poll_from_input(input_data, target_cbs_bin, cbn_id, optional_prefix='', log_suffix='', afl_input=False):
     """
         Method to generate CFE Poll from input data.
 
@@ -241,14 +242,20 @@ def generate_poll_from_input(input_data, target_cbs_bin, cbn_id, optional_prefix
     :param cbn_id: cbn or cs id of the binary to be tested.
     :param optional_prefix: Optional Prefix (helps in maintaining isolation in case of multi-threaded execution)
     :param log_suffix: Suffix to be used for logging.
+    :param afl_input: This flag indicates that this input is provided by AFL.
     :return: (poll_xml, poll_test_res, ret_code).
             poll_xml: Valid CFE POLL XML, generated from provided cfe poll.
             poll_test_res: BinaryTester.PASS_RESULT or FAIL_RESULT or CRASH_RESULT
             ret_code: Return code of cb-test
     """
-    # Create Random Seed.
-    rand_seed = binascii.b2a_hex(os.urandom(RANDOM_SEED_LENGTH))
-    rand_seed = rand_seed[0:RANDOM_SEED_LENGTH]
+
+    # if this is AFL input, use constant seed used by AFL
+    if afl_input:
+        rand_seed = AFL_CONST_SEED
+    else:
+        # Create Random Seed.
+        rand_seed = binascii.b2a_hex(os.urandom(RANDOM_SEED_LENGTH))
+        rand_seed = rand_seed[0:RANDOM_SEED_LENGTH]
     # Create Poll Xml with single write.
     default_actions = [Write([Data(input_data)])]
     target_poll = CFE_POLL(cbn_id, rand_seed, list(default_actions))
