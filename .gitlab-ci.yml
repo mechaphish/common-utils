@@ -3,3 +3,9 @@ update_vm_image:
     script:
     - update-vm-image
     tags: ["docker-builder"]
+
+build_images:
+    only: ["master"]
+    script:
+    - cgc-build network-dude
+    tags: ["docker-builder"]
