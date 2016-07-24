@@ -1,3 +1,5 @@
+import sys
+
 def log_error(msg):
     """
     Log error message
@@ -5,6 +7,7 @@ def log_error(msg):
     :return: None
     """
     print("[!] " + str(msg))
+    sys.stdout.flush()
 
 
 def log_info(msg):
@@ -14,6 +17,7 @@ def log_info(msg):
     :return: None
     """
     print("[*] " + str(msg))
+    sys.stdout.flush()
 
 
 def log_success(msg):
@@ -23,6 +27,7 @@ def log_success(msg):
     :return: None
     """
     print("[+] " + str(msg))
+    sys.stdout.flush()
 
 
 def log_failure(msg):
@@ -32,3 +37,4 @@ def log_failure(msg):
     :return: None
     """
     print("[-] " + str(msg))
+    sys.stdout.flush()
