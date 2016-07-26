@@ -15,7 +15,7 @@ class BinaryTester(object):
     PASS_RESULT = "S"
 
     def __init__(self, binary, testcase, pcap_output_file=None, is_pov=False, is_cfe=True, timeout=None,
-                 standalone=False, ids_rules=None):
+                 standalone=False, ids_rules=None, bitflip_ids=False):
         """
         Constructor of BinaryTester Object.
         :param binary: local folder containing binaries or
@@ -27,6 +27,7 @@ class BinaryTester(object):
         :param timeout: Timeout (for cb test)
         :param standalone: Standalone testing, should make sure ports are allocated.
         :param ids_rules: Path to ids_rules file
+        :param bitflip_ids: flag to indicate whether the ids rules are bitflip
         :return: BinaryTester Object
         """
         self.target_binary = os.path.abspath(binary)
@@ -37,6 +38,7 @@ class BinaryTester(object):
         self.timeout = timeout
         self.standalone = standalone
         self.ids_rules = ids_rules
+        self.bitflip_ids = bitflip_ids
 
     def create_temp_dir(self):
         """
@@ -64,11 +66,13 @@ class BinaryTester(object):
                 binary_names = [os.path.basename(binary_path)]
             if self.ids_rules is None:
                 args = ['cb-test']
+            elif self.bitflip_ids:
+                args = ['cb-test-bitflip']
             else:
                 args = ['cb-test-ids']
             # if this is our binary, increase the timeout for safety
             if not self.is_pov and self.ids_rules is not None:
-                args.extend(['--timeout', '50'])
+                args.extend(['--timeout', '30'])
             elif self.timeout:
                 args.extend(['--timeout', str(int(self.timeout))])
             if self.is_cfe:
