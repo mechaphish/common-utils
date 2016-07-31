@@ -65,9 +65,14 @@ class BinaryTester(object):
                 binary_dir_path = os.path.dirname(binary_path)
                 binary_names = [os.path.basename(binary_path)]
             if self.ids_rules is None:
-                args = ['cb-test']
+                if self.is_pov:
+                    args = ['cb-test-pov']
+                else:
+                    args = ['cb-test']
             elif self.bitflip_ids:
                 args = ['cb-test-bitflip']
+            elif self.is_pov:
+                args = ['cb-test-ids-pov']
             else:
                 args = ['cb-test-ids']
             # if this is our binary, increase the timeout for safety
